@@ -21,6 +21,25 @@ define([], function () {
     ]
   }
 
+  var gerritChange = {
+    title: 'gerrit-change',
+    key: 'gerrit-change',
+    message: 'situation after pushing multiple patches to one changeset',
+    currentBranch: "feature",
+    commitData: [
+        { "id": "e137e9b", "parent": "initial", "tags": [], "message": "first commit" },
+        { "id": "1c016b6", "parent": "e137e9b", "tags": [ "feature"] , "message" : "C2"},
+    /*    { "id": "fd0af32", "parent": "e137e9b", "tags": [ ], "message": "C1" }, */
+        { "id": "84c98fe", "parent": "e137e9b", "tags": [ "master", "origin/master" ], "message": "C1" },
+    ],
+    originData: [
+        { "id": "e137e9b", "parent": "initial", "cx": 100, "cy": 0, "tags": [], "message": "first commit" },
+    /*     { "id": "1c016b6", "parent": "e137e9b", "tags": [ "refs/c/1/1"] }, */
+    /*    { "id": "fd0af32", "parent": "e137e9b", "tags": [ "refs/c/1/2" ] }, */
+        { "id": "84c98fe", "parent": "e137e9b", "tags": [ "master" ], "message": "C1" },
+    ]
+  }
+
   var upstreamChanges = {
     title: 'Upstream Changes',
     key: 'upstream-changes',
@@ -37,11 +56,6 @@ define([], function () {
         "id": "84c98fe",
         "parent": "e137e9b",
         "tags": [ "master", "origin/master" ],
-      },
-      {
-        "id": "1c016b6",
-        "parent": "e137e9b",
-        "tags": [ "feature", "origin/feature", "HEAD" ],
       }
     ],
     originData: [
@@ -357,6 +371,6 @@ define([], function () {
   }
 
   return [
-    free, freeWithRemote, upstreamChanges, rewrittenHistory, revert, cherryPick
+    free, freeWithRemote, upstreamChanges, rewrittenHistory, revert, cherryPick, gerritChange
   ]
 })

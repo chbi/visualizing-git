@@ -784,6 +784,14 @@ function(_yargs, d3, demos) {
         idsToPush = [],
         toPush = [];
 
+      var gerritTargetBranch,
+        gerritTargetChangeNumber,
+        gerritPatchSetNumber;
+
+        if (remoteRef.startsWith("refs/for/")) {
+            throw new Error('gerrit not supported')
+        }
+
       if (remoteName === 'history') {
         throw new Error('Sorry, you can\'t have a remote named "history" in this example.');
       }
@@ -791,20 +799,30 @@ function(_yargs, d3, demos) {
       if (!remote) {
         throw new Error('There is no remote server named "' + remoteName + '".');
       }
-
-      if (remote.branches.indexOf(remoteRef) === -1) {
-        remote.branch(remoteRef, 'e137e9b')
-      }
-
       if (branchArgs) {
         branchArgs = /^([^:]*)(:?)(.*)$/.exec(branchArgs);
 
         branchArgs[1] && (localRef = branchArgs[1]);
         branchArgs[2] === ':' && (remoteRef = branchArgs[3]);
+
+        if (remoteRef && remoteRef.startsWith('refs/for/')) {
+            gerritTargetBranch = remoteRef.substr(9, remoteRef.length)
+            console.log("gerrit target branch is " +  gerritTargetBranch)
+        }
       }
 
-      if (local.branches.indexOf(localRef) === -1) {
+      if (remote.branches.indexOf(remoteRef) === -1 && !gerritTargetBranch) {
+        remote.branch(remoteRef, 'e137e9b')
+      }
+
+      if (local.branches.indexOf(localRef) === -1 && localRef !== 'HEAD') {
         throw new Error('Local ref: ' + localRef + ' does not exist.');
+      }
+
+      // resolve local HEAD in RefSpec; TODO: test Detached HEAD
+      if (localRef === 'HEAD') {
+          localRef = this.getRepoView().currentBranch
+          console.log("HEAD is on " + localRef)
       }
 
       if (!remoteRef) {
@@ -812,6 +830,14 @@ function(_yargs, d3, demos) {
       }
 
       localCommit = local.getCommit(localRef);
+
+      if (gerritTargetBranch) {
+          var localCommitMessage = localCommit.message;
+          gerritTargetChangeNumber = localCommitMessage.match(/[0-9]*$/g)[0]
+          console.log("commitMsg: " + localCommitMessage + " Change ID: " + gerritTargetChangeNumber + " TargetBranch " + gerritTargetBranch )
+          remoteRef = gerritTargetBranch
+      }
+
       remoteCommit = remote.getCommit(remoteRef);
 
       findCommitsToPush = function findCommitsToPush(localCommit) {
@@ -828,7 +854,7 @@ function(_yargs, d3, demos) {
 
       // push to an existing branch on the remote
       if (remoteCommit && remote.branches.indexOf(remoteRef) > -1) {
-        if (!local.isAncestorOf(remoteCommit.id, localCommit.id) && !opt.f) {
+        if (!local.isAncestorOf(remoteCommit.id, localCommit.id) && !opt.f && !gerritTargetChangeNumber) {
           throw new Error('Push rejected. Non fast-forward. Try pulling first');
         }
 
@@ -853,8 +879,23 @@ function(_yargs, d3, demos) {
           this.info('forced update')
         }
 
-        remote.moveTag(remoteRef, localCommit.id);
-        local.moveTag('origin/' + localRef, localRef)
+        if (gerritTargetBranch && gerritTargetChangeNumber) {
+            // get next patch number
+            gerritPatchSetNumber = 0;
+            for (var b in remote.branches ) {
+                if (remote.branches[b].startsWith("refs/c/" + gerritTargetChangeNumber)) {
+                    // gerrit ref exists
+                    var branchPatchSetNumber = parseInt(remote.branches[b].match(/[0-9]*$/g))
+                    if (gerritPatchSetNumber <= branchPatchSetNumber) {
+                        gerritPatchSetNumber = branchPatchSetNumber + 1;
+                    }
+                }
+            }
+            remote.moveTag("refs/c/" + gerritTargetChangeNumber + "/" + gerritPatchSetNumber, localCommit.id);
+        } else {
+            remote.moveTag(remoteRef, localCommit.id);
+            local.moveTag('origin/' + localRef, localRef)
+        }
         remote.renderCommits();
         local.renderTags()
       }
